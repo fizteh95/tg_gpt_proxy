@@ -8,6 +8,7 @@ class PredictOffer:
     identity: InputIdentity
     text: None | str = None
     context: None | Context = None
+    to_retrieve_context: bool = False
 
 
 @dataclass
@@ -24,3 +25,10 @@ class PredictOfferResolutionAccept(PredictOfferResolution):
 class PredictOfferResolutionDecline(PredictOfferResolution):
     offer: PredictOffer
     reason: None | str = None
+
+
+@dataclass
+class ToRetrieveContext:
+    offer: PredictOffer
+
+
