@@ -1,0 +1,150 @@
+import asyncio
+import copy
+import json
+import time
+from hashlib import sha256
+
+import aiohttp
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
+    "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Sec-Ch-Ua": '"Google Chrome";v="113", "Chromium";v="113", "Not-A.Brand";v="24"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"Linux"',
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-origin",
+}
+
+
+def generate_sign(timestamp: str, content: str):
+    return sha256(f"{timestamp}:{content}:".encode("utf-8")).hexdigest()
+
+
+async def test(fake_browser=False):
+    async with aiohttp.ClientSession(headers=headers) as session:
+        if fake_browser:
+            async with session.get("https://gpt.aifree.site/") as r:
+                print(r.cookies)
+                print(r.headers)
+            async with session.get("https://gpt.aifree.site/registerSW.js") as r:
+                print(f"{r.status}, {r.url}")
+            async with session.get("https://analytics.gptnb.xyz/js/script.js") as r:
+                print(f"{r.status}, {r.url}")
+            async with session.get(
+                "https://gpt.aifree.site/_astro/hoisted.8bdc4fc1.js"
+            ) as r:
+                print(f"{r.status}, {r.url}")
+            async with session.get(
+                "https://gpt.aifree.site/_astro/Layout.astro_astro_type_script_index_0_lang.a657d0a3.js"
+            ) as r:
+                print(f"{r.status}, {r.url}")
+            async with session.get(
+                "https://gpt.aifree.site/_astro/index.aa026a57.css"
+            ) as r:
+                print(f"{r.status}, {r.url}")
+            async with session.get(
+                "https://gpt.aifree.site/_astro/index.d51ee4b0.css"
+            ) as r:
+                print(f"{r.status}, {r.url}")
+            async with session.get(
+                "https://gpt.aifree.site/_astro/Generator.de766427.js"
+            ) as r:
+                print(f"{r.status}, {r.url}")
+            async with session.get(
+                "https://gpt.aifree.site/_astro/client.0dc58ebc.js"
+            ) as r:
+                print(f"{r.status}, {r.url}")
+
+            # auth
+            auth_data = {"pass": None}
+            dump_auth_data = json.dumps(auth_data)
+            byte_auth_data = bytes(dump_auth_data.encode())
+            auth_headers = copy.deepcopy(headers)
+            auth_headers.update(
+                {"Content-Type": "application/json"}
+            )  # , "Content-Length": "13"
+            async with session.post(
+                "https://gpt.aifree.site/api/auth",
+                # data=byte_auth_data,
+                json=auth_data,
+                headers=auth_headers,  # auth_data
+            ) as r:
+                print(f"{r.status}, {r.url}")
+            # event
+            event_data = {
+                "n": "pageview",
+                "u": "https://gpt.aifree.site/",
+                "d": "gpt.aifree.site",
+                "r": "https://github.com/LiLittleCat/awesome-free-chatgpt/blob/main/README_en.md",
+                "w": 834,
+            }
+            async with session.post(
+                "https://analytics.gptnb.xyz/api/event", data=event_data
+            ) as r:
+                print(f"{r.status}, {r.url}")
+
+            async with session.get(
+                "https://gpt.aifree.site/_astro/web.0d5d0bd9.js"
+            ) as r:
+                print(f"{r.status}, {r.url}")
+            async with session.get("https://gpt.aifree.site/icon.svg") as r:
+                print(f"{r.status}, {r.url}")
+            async with session.get("https://gpt.aifree.site/manifest.webmanifest") as r:
+                print(f"{r.status}, {r.url}")
+            async with session.get("https://gpt.aifree.site/pwa-192.png") as r:
+                print(f"{r.status}, {r.url}")
+
+        # generate
+        print("ChatGPT conversation")
+        print("If you want to exit, send '!exit'")
+        history = []
+        while True:
+            input_text = input("You > ")
+            if input_text == "!exit":
+                break
+            input_text = input_text.encode().decode()
+            timestamp = str(int(time.time() * 1000))
+            sign = generate_sign(timestamp=timestamp, content=input_text)
+            history.append({"role": "user", "content": input_text})
+            generate_data = {
+                "messages": history,
+                "time": int(timestamp),
+                "pass": None,
+                "sign": sign,
+            }
+            dump_data = json.dumps(generate_data)
+            byte_data = bytes(dump_data.encode())
+            async with session.post(
+                "https://gpt.aifree.site/api/generate", data=byte_data
+            ) as r:
+                response_text = await r.text()
+                print(f"ChatGPT > {response_text}")
+                history.append({"role": "assistant", "content": response_text})
+
+
+asyncio.run(test(fake_browser=False))
+
+
+###############################################3
+
+
+
+async def test():
+    headers = {"Authorization": "Bearer i_love_cunny"}
+    async with aiohttp.ClientSession(headers=headers) as session:
+        generate_data = {
+                "messages": [{"role": "user", "content": "Привет, как дела?"}],
+                "model": "gpt-3.5-turbo",
+                "stream": False,
+                "max_tokens": 1200,
+            }
+        async with session.post(
+                "https://cuteanya-cuteproxy.hf.space/proxy/openai/chat/completions",
+                # "https://AbdulmajeedSM-gpt-reverse-proxy.hf.space/api/v1/chat/completions",  # chat/completions
+                json=generate_data
+        ) as r:
+            response_text = await r.text()
+            print(f"ChatGPT > {response_text}")
+            print(r.headers)
