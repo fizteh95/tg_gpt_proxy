@@ -5,7 +5,7 @@ from src.domain.events import (
     Event,
     GPTResult,
     OutAPIResponse,
-    OutTgText,
+    OutTgResponse,
     PredictOffer,
     PredictOfferResolutionAccept,
     PredictResult,
@@ -67,12 +67,14 @@ class ContextExistProcessor(BaseProcessor):
                 and not message.offer.context
                 and message.offer.one_hit
             ):
-                context = [{"role": "user", "content": message.offer.text}]
+                context = Context(
+                    messages=[{"role": "user", "content": message.offer.text}]
+                )
                 res = ToPredict(offer=message.offer, context=context)
                 return [res]
             elif message.offer.text and not message.offer.one_hit:
-                res = ToRetrieveContext(offer=message.offer)
-                return [res]
+                res_retrieve = ToRetrieveContext(offer=message.offer)
+                return [res_retrieve]
             else:
                 raise
         return []
@@ -89,6 +91,8 @@ class ContextRetrieveProcessor(BaseProcessor):
             print(identity_key)
             # TODO: сделать выгрузку из БД
             ...
+            if message.offer.text is None:
+                raise
             context = [
                 {"role": "user", "content": "Привет!"},
                 {
@@ -137,7 +141,7 @@ class ProxyChecker:
                     print(f"Proxy checker error: proxy={p.url}, error={e}")
                     not_working_proxies.append(p)
             # отправка результатов
-            res_list = []
+            res_list: list[Event] = []
             for w in working_proxies:
                 t1 = ProxyState(proxy=w, ready=True)
                 res_list.append(t1)
@@ -184,8 +188,8 @@ class OutContextExist(BaseProcessor):
     async def handle_message(self, message: Event) -> list[Event]:
         if isinstance(message, PredictResult):
             if message.offer.one_hit:
-                res = GPTResult(identity=message.offer.identity, text=message.text)
-                return [res]
+                res_gpt = GPTResult(identity=message.offer.identity, text=message.text)
+                return [res_gpt]
             else:
                 res = ToSaveContext(predict_result=message)
                 return [res]
@@ -209,11 +213,11 @@ class OutGPTResultRouter(BaseProcessor):
     async def handle_message(self, message: Event) -> list[Event]:
         if isinstance(message, GPTResult):
             if message.identity.channel_type == ChannelType.tg:
-                res = OutTgText(chat_id=message.identity.channel_id, text=message.text)
+                res = OutTgResponse(identity=message.identity, text=message.text)
                 return [res]
             elif message.identity.channel_type == ChannelType.api:
-                res = OutAPIResponse(identity=message.identity, text=message.text)
-                return [res]
+                res_api = OutAPIResponse(identity=message.identity, text=message.text)
+                return [res_api]
             else:
                 raise
         return []

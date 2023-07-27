@@ -1,4 +1,4 @@
-import pytest
+import pytest  # type: ignore
 
 from src.domain.events import Event, OutTgText, ProxyState, TgText
 from src.domain.models import Context, Proxy
@@ -9,6 +9,7 @@ from src.domain.processing import (
     ContextSaveProcessor,
     OutContextExist,
     OutGPTResultRouter,
+    OutTgResponse,
     PredictProcessor,
     ProxyRouter,
     TgInProcessor,
@@ -21,7 +22,7 @@ class FakeOutTg:
         self.messages = []
 
     async def handle_message(self, message: Event) -> list[Event]:
-        if isinstance(message, OutTgText):
+        if isinstance(message, OutTgResponse):
             self.messages.append(message)
             print(f"GPT > {message.text}")
         return []

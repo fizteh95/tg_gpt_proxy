@@ -73,13 +73,19 @@ class GPTResult(Event):
 
 
 @dataclass
-class OutTgResponse(GPTResult):
+class OutTgResponse(Event):
     """Result text to tg"""
+
+    identity: InputIdentity
+    text: str
 
 
 @dataclass
-class OutAPIResponse(GPTResult):
+class OutAPIResponse(Event):
     """Result text to api"""
+
+    identity: InputIdentity
+    text: str
 
 
 @dataclass
@@ -91,10 +97,4 @@ class TgText(Event):
 @dataclass
 class OutTgText(Event):
     chat_id: str
-    text: str
-
-
-@dataclass
-class OutAPIResponse(Event):
-    identity: InputIdentity
     text: str

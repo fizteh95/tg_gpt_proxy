@@ -25,5 +25,5 @@ class Proxy(ABC):
         self.password = password
 
     @abstractmethod
-    def generate(self, content: Context) -> str:
+    async def generate(self, content: Context) -> str:
         raise NotImplementedError
