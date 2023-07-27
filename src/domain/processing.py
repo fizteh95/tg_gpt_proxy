@@ -1,6 +1,8 @@
 import asyncio
 import random
 
+import aiohttp
+
 from src.domain.events import (
     Event,
     GPTResult,
@@ -11,7 +13,7 @@ from src.domain.events import (
     PredictResult,
     PreparedProxy,
     ProxyState,
-    TgText,
+    InTgText,
     ToPredict,
     ToRetrieveContext,
     ToSaveContext,
@@ -31,7 +33,7 @@ class BaseProcessor(Subscriber):
 
 class TgInProcessor(BaseProcessor):
     async def handle_message(self, message: Event) -> list[Event]:
-        if isinstance(message, TgText):
+        if isinstance(message, InTgText):
             identity = InputIdentity(
                 channel_id=message.chat_id, channel_type=ChannelType.tg
             )
@@ -119,7 +121,7 @@ class ProxyChecker:
                 super().__init__(url=url, password=password)
 
             async def generate(self, content: Context) -> str:
-                return "Привет!"
+                return "пампампам"
 
         self.proxies = [TestProxy(url="cuteanya")]
 
@@ -214,6 +216,7 @@ class OutGPTResultRouter(BaseProcessor):
         if isinstance(message, GPTResult):
             if message.identity.channel_type == ChannelType.tg:
                 res = OutTgResponse(identity=message.identity, text=message.text)
+                print(res)
                 return [res]
             elif message.identity.channel_type == ChannelType.api:
                 res_api = OutAPIResponse(identity=message.identity, text=message.text)

@@ -89,9 +89,15 @@ class OutAPIResponse(Event):
 
 
 @dataclass
-class TgText(Event):
+class InTgText(Event):
     chat_id: str
     text: str
+
+
+@dataclass
+class InTgCommand(Event):
+    chat_id: str
+    command: str
 
 
 @dataclass

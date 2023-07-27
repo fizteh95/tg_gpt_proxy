@@ -1,6 +1,6 @@
 import pytest  # type: ignore
 
-from src.domain.events import Event, OutTgText, ProxyState, TgText
+from src.domain.events import Event, OutTgText, ProxyState, InTgText
 from src.domain.models import Context, Proxy
 from src.domain.processing import (
     AuthProcessor,
@@ -55,7 +55,7 @@ async def test_everything() -> None:
     bus.register(fot)
 
     proxy_to_add = ProxyState(proxy=FakeProxy(url=""), ready=True)
-    test_message = TgText(chat_id="123", text="привет")
+    test_message = InTgText(chat_id="123", text="привет")
 
     await bus.public_message(proxy_to_add)
     await bus.public_message(test_message)
