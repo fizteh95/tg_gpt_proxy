@@ -1,4 +1,5 @@
 import asyncio
+from os import walk
 import random
 
 import aiohttp  # noqa
@@ -21,9 +22,8 @@ from src.domain.models import ChannelType
 from src.domain.models import Context
 from src.domain.models import InputIdentity
 from src.domain.models import Proxy
+from src.domain.so_loader import load_so_module
 from src.domain.subscriber import Subscriber
-from src.proxies.cuteanya import TestProxy
-from src.proxies.new_test import NewTestProxy
 from src.services.message_bus import MessageBus
 
 
@@ -111,10 +111,13 @@ class ProxyChecker:
 
     def __init__(self, bus: MessageBus) -> None:
         self.bus = bus
+        self.proxies: list[Proxy] = []
         # loading proxies
-        first_proxy = NewTestProxy(url="new_test_proxy")
-        second_proxy = TestProxy(url="cuteanya")
-        self.proxies = [first_proxy, second_proxy]
+        filenames = next(walk("./so/"), (None, None, []))[2]  # type: ignore
+        for name in filenames:
+            module = load_so_module(name)
+            proxy = module.CustomProxy(url=name)
+            self.proxies.append(proxy)
 
     async def start(self) -> None:
         # TODO: сделать по красоте

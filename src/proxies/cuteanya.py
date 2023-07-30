@@ -3,7 +3,7 @@ import aiohttp
 from src.domain.models import Proxy, Context
 
 
-class TestProxy(Proxy):
+class CustomProxy(Proxy):
     def __init__(self, url: str, password: str | None = None) -> None:
         super().__init__(url=url, password=password)
 

@@ -5,7 +5,6 @@ from aiogram import Bot
 
 from src import settings
 from src.domain.context_manager import ContextManager
-from src.domain.events import ProxyState
 from src.domain.processing import AuthProcessor
 from src.domain.processing import ContextExistProcessor
 from src.domain.processing import ContextRetrieveProcessor
