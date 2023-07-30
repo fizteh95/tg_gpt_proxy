@@ -1,7 +1,7 @@
 import importlib.util
 import sys
-from pathlib import Path
 import typing as tp
+from pathlib import Path
 
 
 def load_so_module(module_name: str) -> tp.Any:

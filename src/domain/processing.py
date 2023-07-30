@@ -1,12 +1,11 @@
 import asyncio
-from os import walk
 import random
-
-import aiohttp  # noqa
+from os import walk
 
 from src.domain.context_manager import ContextManager
 from src.domain.events import Event
 from src.domain.events import GPTResult
+from src.domain.events import InTgCommand
 from src.domain.events import InTgText
 from src.domain.events import OutAPIResponse
 from src.domain.events import OutTgResponse
@@ -43,6 +42,22 @@ class TgInProcessor(BaseProcessor):
             )
             res = PredictOffer(identity=identity, text=message.text, one_hit=False)
             return [res]
+        elif isinstance(message, InTgCommand):
+            identity = InputIdentity(
+                channel_id=message.chat_id, channel_type=ChannelType.tg
+            )
+            if message.command == "start":
+                greeting = (
+                    "Привет! Это прокси до ChatGPT. Чтобы начать общаться, просто отправь сообщение ;)\n"
+                    "Чтобы очистить контекст, отправь /clear"
+                )
+                res_greet = OutTgResponse(identity=identity, text=greeting)
+                return [res_greet]
+            elif message.command == "clear":
+                await self.context_manager.clear_context(user_id=identity.to_str)
+                clear_response = "Контекст очищен."
+                res_clear = OutTgResponse(identity=identity, text=clear_response)
+                return [res_clear]
         return []
 
 
@@ -99,6 +114,7 @@ class ContextRetrieveProcessor(BaseProcessor):
             context = await self.context_manager.add_event_in_context(
                 user_id=message.offer.identity.to_str, event=event_to_add
             )
+            print(f"tp3 {context}")
             res = ToPredict(offer=message.offer, context=context)
             return [res]
         return []
@@ -174,9 +190,11 @@ class ProxyRouter(BaseProcessor):
 class PredictProcessor(BaseProcessor):
     async def handle_message(self, message: Event) -> list[Event]:
         if isinstance(message, PreparedProxy):
+            print("Start generate")
             response_text = await message.proxy.generate(
                 content=message.to_predict.context
             )
+            print("End generate")
             res = PredictResult(offer=message.to_predict.offer, text=response_text)
             return [res]
         return []

@@ -20,13 +20,14 @@ from src.driven_ports.telegram.wrapper import TgSenderWrapper
 from src.leading_ports.telegram.adapter import MessagePollerAdapter
 from src.leading_ports.telegram.tg_poller import TgPoller
 from src.services.message_bus import ConcreteMessageBus
-from src.services.unit_of_work import InMemoryUnitOfWork
+from src.services.unit_of_work import InMemoryUnitOfWork  # noqa
+from src.services.unit_of_work import SQLAlchemyUnitOfWork  # noqa
 
 
 async def bootstrap() -> tp.Any:
     to_gather: list[tp.Coroutine[None, None, None]] = []
 
-    uow = InMemoryUnitOfWork()
+    uow = SQLAlchemyUnitOfWork()
     async with uow as u:
         await u.repo.prepare_db()
     bus = ConcreteMessageBus()

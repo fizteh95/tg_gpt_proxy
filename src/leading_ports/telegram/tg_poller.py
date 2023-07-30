@@ -48,7 +48,7 @@ class TgPoller(MessagePoller):
         if text[0] == "/":
             event = InTgCommand(
                 chat_id=tg_message.chat.id,
-                command=text,
+                command=text[1:],
             )
         else:
             event = InTgText(  # type: ignore

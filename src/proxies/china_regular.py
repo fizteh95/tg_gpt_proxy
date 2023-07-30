@@ -3,7 +3,8 @@ from hashlib import sha256
 
 import aiohttp
 
-from src.domain.models import Proxy, Context
+from src.domain.models import Context
+from src.domain.models import Proxy
 
 
 class CustomProxy(Proxy):

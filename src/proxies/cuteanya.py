@@ -1,6 +1,7 @@
 import aiohttp
 
-from src.domain.models import Proxy, Context
+from src.domain.models import Context
+from src.domain.models import Proxy
 
 
 class CustomProxy(Proxy):
@@ -17,8 +18,8 @@ class CustomProxy(Proxy):
                 "max_tokens": 1200,
             }
             async with session.post(
-                    "https://cuteanya-cuteproxy.hf.space/proxy/openai/chat/completions",
-                    json=generate_data
+                "https://cuteanya-cuteproxy.hf.space/proxy/openai/chat/completions",
+                json=generate_data,
             ) as r:
                 response_json = await r.json()
                 response_text: str = response_json["choices"][0]["message"]["content"]

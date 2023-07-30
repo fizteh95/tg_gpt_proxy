@@ -18,10 +18,12 @@ class ContextManager:
     async def add_event_in_context(
         self, user_id: str, event: dict[str, str]
     ) -> Context:
+        print("tp1")
         context = await self.get_context(user_id=user_id)
         context.messages.append(event)
         async with self.uow as uow:
             await uow.repo.save_context(user_id=user_id, context=context)
+        print("tp2")
         return context
 
     async def clear_context(self, user_id: str) -> None:
