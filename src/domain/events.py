@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
-from src.domain.models import Context, InputIdentity, Proxy
+from src.domain.models import Context
+from src.domain.models import InputIdentity
+from src.domain.models import Proxy
 
 
 @dataclass
@@ -73,19 +75,19 @@ class GPTResult(Event):
 
 
 @dataclass
-class OutTgResponse(Event):
-    """Result text to tg"""
-
+class OutResponse(Event):
     identity: InputIdentity
     text: str
 
 
 @dataclass
-class OutAPIResponse(Event):
-    """Result text to api"""
+class OutTgResponse(OutResponse):
+    """Result text to tg"""
 
-    identity: InputIdentity
-    text: str
+
+@dataclass
+class OutAPIResponse(OutResponse):
+    """Result text to api"""
 
 
 @dataclass
@@ -98,9 +100,3 @@ class InTgText(Event):
 class InTgCommand(Event):
     chat_id: str
     command: str
-
-
-@dataclass
-class OutTgText(Event):
-    chat_id: str
-    text: str

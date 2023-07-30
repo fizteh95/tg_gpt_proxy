@@ -1,4 +1,6 @@
 import typing as tp
+from abc import ABC
+from abc import abstractmethod
 
 import aiogram
 
@@ -7,14 +9,30 @@ from src.domain.events import InTgText
 from src.settings import logger
 
 
-class TgPoller:
+class MessagePoller(ABC):
+    def __init__(
+        self,
+        message_handler: tp.Callable[
+            [InTgText | InTgCommand], tp.Awaitable[None]
+        ],  # TODO: поменять классы на базовые
+        *args: tp.Any,
+        **kwargs: tp.Any,
+    ) -> None:
+        self.message_handler = message_handler
+
+    @abstractmethod
+    async def listen(self) -> None:
+        raise NotImplementedError
+
+
+class TgPoller(MessagePoller):
     def __init__(
         self,
         message_handler: tp.Callable[[InTgText | InTgCommand], tp.Awaitable[None]],
         bot: aiogram.Bot,
     ) -> None:
         """Initialize of entrypoints"""
-        self.message_handler = message_handler
+        super().__init__(bot=bot, message_handler=message_handler)
         self.bot = bot
         self.dp = aiogram.Dispatcher(self.bot)
         self.dp.register_message_handler(self.process_message)

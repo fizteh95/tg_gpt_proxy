@@ -1,5 +1,6 @@
 import enum
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 from dataclasses import dataclass
 
 
@@ -17,6 +18,10 @@ class ChannelType(enum.Enum):
 class InputIdentity:
     channel_type: ChannelType
     channel_id: str
+
+    @property
+    def to_str(self) -> str:
+        return f"{self.channel_type.value}_{self.channel_id}"
 
 
 class Proxy(ABC):

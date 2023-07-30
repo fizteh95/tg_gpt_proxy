@@ -1,31 +1,35 @@
 import asyncio
 import random
 
-import aiohttp
+import aiohttp  # noqa
 
-from src.domain.events import (
-    Event,
-    GPTResult,
-    OutAPIResponse,
-    OutTgResponse,
-    PredictOffer,
-    PredictOfferResolutionAccept,
-    PredictResult,
-    PreparedProxy,
-    ProxyState,
-    InTgText,
-    ToPredict,
-    ToRetrieveContext,
-    ToSaveContext,
-)
-from src.domain.models import ChannelType, Context, InputIdentity, Proxy
+from src.domain.context_manager import ContextManager
+from src.domain.events import Event
+from src.domain.events import GPTResult
+from src.domain.events import InTgText
+from src.domain.events import OutAPIResponse
+from src.domain.events import OutTgResponse
+from src.domain.events import PredictOffer
+from src.domain.events import PredictOfferResolutionAccept
+from src.domain.events import PredictResult
+from src.domain.events import PreparedProxy
+from src.domain.events import ProxyState
+from src.domain.events import ToPredict
+from src.domain.events import ToRetrieveContext
+from src.domain.events import ToSaveContext
+from src.domain.models import ChannelType
+from src.domain.models import Context
+from src.domain.models import InputIdentity
+from src.domain.models import Proxy
 from src.domain.subscriber import Subscriber
+from src.proxies.cuteanya import TestProxy
+from src.proxies.new_test import NewTestProxy
 from src.services.message_bus import MessageBus
 
 
 class BaseProcessor(Subscriber):
-    def __init__(self) -> None:
-        pass
+    def __init__(self, context_manager: ContextManager) -> None:
+        self.context_manager = context_manager
 
     async def handle_message(self, message: Event) -> list[Event]:
         raise NotImplementedError
@@ -84,26 +88,18 @@ class ContextExistProcessor(BaseProcessor):
 
 class ContextRetrieveProcessor(BaseProcessor):
     """
-    Класс для проверки, нужно ли вытаскивать контекст из БД
+    Класс для вытаскивания имеющегося контекста и сохранения входящего сообщения в него
     """
 
     async def handle_message(self, message: Event) -> list[Event]:
         if isinstance(message, ToRetrieveContext):
-            identity_key = f"{message.offer.identity.channel_type.value}_{message.offer.identity.channel_id}"
-            print(identity_key)
-            # TODO: сделать выгрузку из БД
-            ...
             if message.offer.text is None:
                 raise
-            context = [
-                {"role": "user", "content": "Привет!"},
-                {
-                    "role": "assistant",
-                    "content": "Йоу чувак, ваззаааап! С какой мазой тебе помочь сегодня?",
-                },
-                {"role": "user", "content": message.offer.text},
-            ]
-            res = ToPredict(offer=message.offer, context=Context(messages=context))
+            event_to_add = {"role": "user", "content": message.offer.text}
+            context = await self.context_manager.add_event_in_context(
+                user_id=message.offer.identity.to_str, event=event_to_add
+            )
+            res = ToPredict(offer=message.offer, context=context)
             return [res]
         return []
 
@@ -115,15 +111,10 @@ class ProxyChecker:
 
     def __init__(self, bus: MessageBus) -> None:
         self.bus = bus
-
-        class TestProxy(Proxy):
-            def __init__(self, url: str, password: str | None = None) -> None:
-                super().__init__(url=url, password=password)
-
-            async def generate(self, content: Context) -> str:
-                return "пампампам"
-
-        self.proxies = [TestProxy(url="cuteanya")]
+        # loading proxies
+        first_proxy = NewTestProxy(url="new_test_proxy")
+        second_proxy = TestProxy(url="cuteanya")
+        self.proxies = [first_proxy, second_proxy]
 
     async def start(self) -> None:
         # TODO: сделать по красоте
@@ -138,6 +129,7 @@ class ProxyChecker:
                 try:
                     res = await p.generate(content=test_context)
                     if isinstance(res, str) and len(res) > 0:
+                        print(f"proxy working, {p}")
                         working_proxies.append(p)
                 except Exception as e:
                     print(f"Proxy checker error: proxy={p.url}, error={e}")
@@ -150,15 +142,16 @@ class ProxyChecker:
             for nw in not_working_proxies:
                 t2 = ProxyState(proxy=nw, ready=False)
                 res_list.append(t2)
+            print(f"proxy list: {res_list}")
             await self.bus.public_message(message=res_list)
             # спим
             await asyncio.sleep(600)  # 10 минут
 
 
 class ProxyRouter(BaseProcessor):
-    def __init__(self):
-        super().__init__()
-        self.proxies = set()
+    def __init__(self, context_manager: ContextManager) -> None:
+        super().__init__(context_manager=context_manager)
+        self.proxies: set[Proxy] = set()
 
     async def handle_message(self, message: Event) -> list[Event]:
         if isinstance(message, ProxyState):
@@ -201,8 +194,10 @@ class OutContextExist(BaseProcessor):
 class ContextSaveProcessor(BaseProcessor):
     async def handle_message(self, message: Event) -> list[Event]:
         if isinstance(message, ToSaveContext):
-            # TODO: save in db
-            ...
+            event_to_add = {"role": "assistant", "content": message.predict_result.text}
+            await self.context_manager.add_event_in_context(
+                user_id=message.predict_result.offer.identity.to_str, event=event_to_add
+            )
             res = GPTResult(
                 identity=message.predict_result.offer.identity,
                 text=message.predict_result.text,

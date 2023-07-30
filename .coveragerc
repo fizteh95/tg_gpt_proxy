@@ -1,0 +1,5 @@
+[run]
+omit =
+        src/settings/*
+        src/services/repo/alchemy/alembic/*
+        */__init__.py
