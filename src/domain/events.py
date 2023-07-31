@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from src.domain.models import Context
 from src.domain.models import InputIdentity
 from src.domain.models import Proxy
+from src.domain.models import TgInlineButtonArray
+from src.domain.models import TgUser
 
 
 @dataclass
@@ -84,6 +86,9 @@ class OutResponse(Event):
 class OutTgResponse(OutResponse):
     """Result text to tg"""
 
+    inline_buttons: TgInlineButtonArray | None = None
+    to_save_like: str | None = None
+
 
 @dataclass
 class OutAPIResponse(OutResponse):
@@ -92,11 +97,26 @@ class OutAPIResponse(OutResponse):
 
 @dataclass
 class InTgText(Event):
-    chat_id: str
+    tg_user: TgUser
     text: str
 
 
 @dataclass
 class InTgCommand(Event):
-    chat_id: str
+    tg_user: TgUser
     command: str
+
+
+@dataclass
+class InTgButtonPushed(Event):
+    tg_user: TgUser
+    data: str
+
+
+@dataclass
+class TgEditText(Event):
+    identity: InputIdentity
+    to_edit_like: str
+    text: str
+    inline_buttons: TgInlineButtonArray | None = None
+    message_id: str | None = None

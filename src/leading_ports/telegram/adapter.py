@@ -1,3 +1,4 @@
+from src.domain.events import InTgButtonPushed
 from src.domain.events import InTgCommand
 from src.domain.events import InTgText
 from src.services.message_bus import MessageBus
@@ -9,8 +10,12 @@ class MessagePollerAdapter:
         self.uow = uow
         self.bus = bus
 
-    async def message_handler(self, message: InTgText | InTgCommand) -> None:
-        # async with self.uow as u:
-        #     await u.repo.save_command(message)
+    async def message_handler(
+        self, message: InTgText | InTgCommand | InTgButtonPushed
+    ) -> None:
+        async with self.uow as u:
+            user = await u.repo.get_tg_user(chat_id=message.tg_user.chat_id)
+            if not user:
+                await u.repo.create_tg_user(tg_user=message.tg_user)
         await self.bus.public_message(message=message)
         return None

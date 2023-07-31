@@ -5,8 +5,12 @@ from src.domain.models import Proxy
 
 
 class CustomProxy(Proxy):
-    def __init__(self, url: str, password: str | None = None) -> None:
-        super().__init__(url=url, password=password)
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "ChatGPT-3.5 bounded"
+        self.description = (
+            "Зеркало OpenAI. Ограничение на количество токенов в ответе: 200."
+        )
 
     async def generate(self, content: Context) -> str:
         headers = {"Authorization": "Bearer i_love_cunny"}

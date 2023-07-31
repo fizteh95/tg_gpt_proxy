@@ -1,5 +1,6 @@
 import pytest
 
+from src.domain.user_state_manager import UserStateManager
 from src.domain.context_manager import ContextManager
 from src.domain.events import Event
 from src.domain.events import InTgText
@@ -7,6 +8,7 @@ from src.domain.events import OutTgResponse
 from src.domain.events import ProxyState
 from src.domain.models import Context
 from src.domain.models import Proxy
+from src.domain.models import TgUser
 from src.domain.processing import AuthProcessor
 from src.domain.processing import ContextExistProcessor
 from src.domain.processing import ContextRetrieveProcessor
@@ -55,20 +57,24 @@ async def test_everything() -> None:
     ]
 
     context_manager = ContextManager(bus=bus, uow=uow)
+    user_state_manager = UserStateManager(bus=bus, uow=uow)
 
     for p in processors:
-        bus.register(p(context_manager=context_manager))
+        bus.register(
+            p(context_manager=context_manager, user_state_manager=user_state_manager)
+        )
     bus.register(fot)
 
-    proxy_to_add = ProxyState(proxy=FakeProxy(url=""), ready=True)
-    test_message = InTgText(chat_id="123", text="привет")
+    proxy_to_add = ProxyState(proxy=FakeProxy(), ready=True)
+    tg_user = TgUser(chat_id="123")
+    test_message = InTgText(tg_user=tg_user, text="привет")
 
     await bus.public_message(proxy_to_add)
     await bus.public_message(test_message)
 
     assert len(fot.messages) == 1
 
-    test_message2 = InTgText(chat_id="123", text="что делаешь?")
+    test_message2 = InTgText(tg_user=tg_user, text="что делаешь?")
     await bus.public_message(test_message2)
 
     assert "Telegram_123" in uow.repo.context

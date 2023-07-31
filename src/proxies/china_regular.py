@@ -8,8 +8,10 @@ from src.domain.models import Proxy
 
 
 class CustomProxy(Proxy):
-    def __init__(self, url: str, password: str | None = None) -> None:
-        super().__init__(url=url, password=password)
+    def __init__(self) -> None:
+        super().__init__()
+        self.name = "ChatGPT-3.5"
+        self.description = "Зеркало OpenAI"
         self.headers = {
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
             "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",

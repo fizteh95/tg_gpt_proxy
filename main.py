@@ -3,6 +3,7 @@ import typing as tp
 
 from aiogram import Bot
 
+from domain.user_state_manager import UserStateManager
 from src import settings
 from src.domain.context_manager import ContextManager
 from src.domain.processing import AuthProcessor
@@ -27,12 +28,13 @@ from src.services.unit_of_work import SQLAlchemyUnitOfWork  # noqa
 async def bootstrap() -> tp.Any:
     to_gather: list[tp.Coroutine[None, None, None]] = []
 
-    uow = SQLAlchemyUnitOfWork()
+    uow = InMemoryUnitOfWork()
     async with uow as u:
         await u.repo.prepare_db()
     bus = ConcreteMessageBus()
 
     context_manager = ContextManager(bus=bus, uow=uow)
+    user_state_manager = UserStateManager(bus=bus, uow=uow)
 
     processors = [
         TgInProcessor,
@@ -49,7 +51,9 @@ async def bootstrap() -> tp.Any:
     proxy_checker = ProxyChecker(bus=bus)
 
     for p in processors:
-        bus.register(p(context_manager=context_manager))
+        bus.register(
+            p(context_manager=context_manager, user_state_manager=user_state_manager)
+        )
 
     # proxy_to_add = ProxyState(proxy_checker.proxies[0], ready=True)
     #
@@ -64,7 +68,7 @@ async def bootstrap() -> tp.Any:
     to_gather.append(tg_poller.listen())
 
     tg_sender = TgSender(bot=bot)
-    wrapped_sender = TgSenderWrapper(sender=tg_sender)
+    wrapped_sender = TgSenderWrapper(sender=tg_sender, uow=uow, bus=bus)
     bus.register(wrapped_sender)
 
     return asyncio.gather(*to_gather)
