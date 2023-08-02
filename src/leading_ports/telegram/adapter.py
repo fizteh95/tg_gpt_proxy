@@ -17,5 +17,6 @@ class MessagePollerAdapter:
             user = await u.repo.get_tg_user(chat_id=message.tg_user.chat_id)
             if not user:
                 await u.repo.create_tg_user(tg_user=message.tg_user)
+
         await self.bus.public_message(message=message)
         return None

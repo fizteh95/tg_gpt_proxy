@@ -33,7 +33,7 @@ class PredictOfferResolutionAccept(PredictOfferResolution):
 @dataclass
 class PredictOfferResolutionDecline(PredictOfferResolution):
     offer: PredictOffer
-    reason: None | str = None
+    reason: str
 
 
 @dataclass

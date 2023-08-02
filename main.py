@@ -3,9 +3,11 @@ import typing as tp
 
 from aiogram import Bot
 
+from domain.access_manager import AccessManager
 from domain.user_state_manager import UserStateManager
 from src import settings
 from src.domain.context_manager import ContextManager
+from src.domain.processing import AccessRefreshProcessor
 from src.domain.processing import AuthProcessor
 from src.domain.processing import ContextExistProcessor
 from src.domain.processing import ContextRetrieveProcessor
@@ -15,6 +17,7 @@ from src.domain.processing import OutGPTResultRouter
 from src.domain.processing import PredictProcessor
 from src.domain.processing import ProxyChecker
 from src.domain.processing import ProxyRouter
+from src.domain.processing import ResolutionDeclineRouter
 from src.domain.processing import TgInProcessor
 from src.driven_ports.telegram.tg_sender import TgSender
 from src.driven_ports.telegram.wrapper import TgSenderWrapper
@@ -35,6 +38,7 @@ async def bootstrap() -> tp.Any:
 
     context_manager = ContextManager(bus=bus, uow=uow)
     user_state_manager = UserStateManager(bus=bus, uow=uow)
+    access_manager = AccessManager(bus=bus, uow=uow)
 
     processors = [
         TgInProcessor,
@@ -46,19 +50,30 @@ async def bootstrap() -> tp.Any:
         OutContextExist,
         ContextSaveProcessor,
         OutGPTResultRouter,
+        ResolutionDeclineRouter,
     ]
 
     proxy_checker = ProxyChecker(bus=bus)
+    access_refresh_processor = AccessRefreshProcessor(
+        context_manager=context_manager,
+        user_state_manager=user_state_manager,
+        access_manager=access_manager,
+    )
 
     for p in processors:
         bus.register(
-            p(context_manager=context_manager, user_state_manager=user_state_manager)
+            p(
+                context_manager=context_manager,
+                user_state_manager=user_state_manager,
+                access_manager=access_manager,
+            )
         )
 
     # proxy_to_add = ProxyState(proxy_checker.proxies[0], ready=True)
     #
     # await bus.public_message(proxy_to_add)
     asyncio.create_task(proxy_checker.start())
+    asyncio.create_task(access_refresh_processor.start())
 
     # Telegram
     bot = Bot(token=settings.TG_BOT_TOKEN)

@@ -45,12 +45,12 @@ class InMemoryRepo(AbstractRepo):
     async def get_tg_user_state(self, chat_id: str) -> dict[str, str]:
         return copy.deepcopy(self.tg_user_state.get(chat_id, {}))
 
-    async def get_access_counter(self, user_id: str) -> AccessCounter:
-        return copy.deepcopy(
-            self.access_counter.get(
-                user_id, AccessCounter(remain_per_day=0, remain_per_all_time=0)
-            )
-        )
+    async def get_access_counter(self, user_id: str) -> AccessCounter | None:
+        return copy.deepcopy(self.access_counter.get(user_id))
+
+    async def set_access_counter_usual_for_everybody(self, count_level: int) -> None:
+        for u in list(self.access_counter.keys()):
+            self.access_counter[u].remain_per_day = count_level
 
     async def set_access_counter(
         self, user_id: str, access_counter: AccessCounter

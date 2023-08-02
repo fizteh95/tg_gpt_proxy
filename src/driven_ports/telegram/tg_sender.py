@@ -4,6 +4,7 @@ from abc import abstractmethod
 
 import aiogram
 
+from domain.models import TgInlineButtonArray
 from src.domain.events import OutTgResponse
 from src.domain.events import TgEditText
 from src.settings import logger
@@ -24,11 +25,12 @@ class TgSender(MessageSender):
         """Initialize of sender"""
         self.bot = bot
 
-    async def send(self, message: OutTgResponse) -> str:
-        """Send to outer service"""
-        logger.info("send message")
+    @staticmethod
+    def create_reply_markup(
+        inline_buttons: TgInlineButtonArray | None,
+    ) -> aiogram.types.InlineKeyboardMarkup | None:
         reply_markup = None
-        if message.inline_buttons:
+        if inline_buttons:
             buttons = [
                 [
                     aiogram.types.InlineKeyboardButton(
@@ -36,9 +38,15 @@ class TgSender(MessageSender):
                     )
                     for y in x
                 ]
-                for x in message.inline_buttons.buttons
+                for x in inline_buttons.buttons
             ]
             reply_markup = aiogram.types.InlineKeyboardMarkup(inline_keyboard=buttons)
+        return reply_markup
+
+    async def send(self, message: OutTgResponse) -> str:
+        """Send to outer service"""
+        logger.info("send message")
+        reply_markup = self.create_reply_markup(message.inline_buttons)
         sent_message = await self.bot.send_message(
             chat_id=message.identity.channel_id,
             text=message.text,
@@ -50,18 +58,7 @@ class TgSender(MessageSender):
 
     async def edit_text(self, message: TgEditText) -> None:
         logger.info("edit message")
-        reply_markup = None
-        if message.inline_buttons:
-            buttons = [
-                [
-                    aiogram.types.InlineKeyboardButton(
-                        text=y.text, callback_data=y.callback_data
-                    )
-                    for y in x
-                ]
-                for x in message.inline_buttons.buttons
-            ]
-            reply_markup = aiogram.types.InlineKeyboardMarkup(inline_keyboard=buttons)
+        reply_markup = self.create_reply_markup(message.inline_buttons)
         await self.bot.edit_message_text(
             chat_id=message.identity.channel_id,
             message_id=message.message_id,

@@ -1,6 +1,6 @@
 import pytest
 
-from src.domain.user_state_manager import UserStateManager
+from src.domain.access_manager import AccessManager
 from src.domain.context_manager import ContextManager
 from src.domain.events import Event
 from src.domain.events import InTgText
@@ -18,6 +18,7 @@ from src.domain.processing import OutGPTResultRouter
 from src.domain.processing import PredictProcessor
 from src.domain.processing import ProxyRouter
 from src.domain.processing import TgInProcessor
+from src.domain.user_state_manager import UserStateManager
 from src.services.message_bus import ConcreteMessageBus
 from src.services.unit_of_work import InMemoryUnitOfWork
 
@@ -58,10 +59,15 @@ async def test_everything() -> None:
 
     context_manager = ContextManager(bus=bus, uow=uow)
     user_state_manager = UserStateManager(bus=bus, uow=uow)
+    access_manager = AccessManager(bus=bus, uow=uow)
 
     for p in processors:
         bus.register(
-            p(context_manager=context_manager, user_state_manager=user_state_manager)
+            p(
+                context_manager=context_manager,
+                user_state_manager=user_state_manager,
+                access_manager=access_manager,
+            )
         )
     bus.register(fot)
 
@@ -72,7 +78,7 @@ async def test_everything() -> None:
     await bus.public_message(proxy_to_add)
     await bus.public_message(test_message)
 
-    assert len(fot.messages) == 1
+    assert len(fot.messages) == 2
 
     test_message2 = InTgText(tg_user=tg_user, text="что делаешь?")
     await bus.public_message(test_message2)

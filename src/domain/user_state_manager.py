@@ -1,4 +1,3 @@
-from src.domain.models import Context
 from src.domain.models import StateMap
 from src.domain.models import TgState
 from src.services.message_bus import MessageBus

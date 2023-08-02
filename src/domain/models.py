@@ -28,6 +28,7 @@ class Proxy(ABC):
     def __init__(self) -> None:
         self.name = ""
         self.description = ""
+        self.premium = False
 
     @abstractmethod
     async def generate(self, content: Context) -> str:
@@ -45,7 +46,7 @@ class TgUser:
 @dataclass
 class AccessCounter:
     remain_per_day: int
-    remain_per_all_time: int
+    remain_per_all_time: int  # premium counter
 
 
 class StateMap(enum.Enum):

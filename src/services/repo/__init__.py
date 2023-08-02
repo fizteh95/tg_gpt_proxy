@@ -42,7 +42,11 @@ class AbstractRepo(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_access_counter(self, user_id: str) -> AccessCounter:
+    async def get_access_counter(self, user_id: str) -> AccessCounter | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def set_access_counter_usual_for_everybody(self, count_level: int) -> None:
         raise NotImplementedError
 
     @abstractmethod
