@@ -77,14 +77,18 @@ class TgInProcessor(BaseProcessor):
                 channel_id=message.tg_user.chat_id, channel_type=ChannelType.tg
             )
             res_events: list[Event] = []
-            created = await self.access_manager.create_access_counter_if_not_exists(user_id=identity.to_str)
+            created = await self.access_manager.create_access_counter_if_not_exists(
+                user_id=identity.to_str
+            )
             if created:
                 created_notify_text = (
                     "Новым пользователям доступно 10 запросов к бесплатным прокси. "
                     "Чтобы увеличить лимиты и открыть заблокированные прокси, "
                     "купите пакет запросов ;)"
                 )
-                created_notify = OutTgResponse(identity=identity, text=created_notify_text)
+                created_notify = OutTgResponse(
+                    identity=identity, text=created_notify_text
+                )
                 res_events.append(created_notify)
             if message.command == "start":
                 greeting = (
@@ -112,7 +116,11 @@ class TgInProcessor(BaseProcessor):
                 access_counter = await self.access_manager.get_access_counter(
                     user_id=identity.to_str
                 )
-                user_current_proxy_name = await self.user_state_manager.get_user_proxy_name(chat_id=identity.channel_id)
+                user_current_proxy_name = (
+                    await self.user_state_manager.get_user_proxy_name(
+                        chat_id=identity.channel_id
+                    )
+                )
                 if not user_current_proxy_name:
                     user_current_proxy_name = "ChatGPT-3.5 bounded"
                 buttons: list[list[TgInlineButton]] = []
