@@ -4,10 +4,10 @@ from abc import abstractmethod
 
 import aiogram
 
-from domain.models import TgUser
 from src.domain.events import InTgButtonPushed
 from src.domain.events import InTgCommand
 from src.domain.events import InTgText
+from src.domain.models import TgUser
 from src.settings import logger
 
 

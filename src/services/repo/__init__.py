@@ -57,12 +57,39 @@ class AbstractRepo(ABC):
 
     @abstractmethod
     async def save_out_tg_message(
-        self, chat_id: str, text: str, text_like: str, message_id: str
+        self,
+        chat_id: str,
+        text: str,
+        text_like: str,
+        message_id: str,
+        not_pushed_to_delete: bool,
+        not_pushed_to_edit_text: str = "",
+        pushed: bool = False,
     ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def make_saved_message_pushed(
+        self, chat_id: str, message_text_like: str
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_exist_not_pushed_message_to_delete(self, chat_id: str) -> str | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_exist_not_pushed_message_to_edit(
+        self, chat_id: str
+    ) -> tuple[str, str, str] | tuple[None, None, None]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def remove_out_tg_message(self, chat_id: str, message_id: str) -> None:
         raise NotImplementedError
 
     @abstractmethod
     async def get_saved_tg_message(
         self, chat_id: str, text_like: str
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, str]:
         raise NotImplementedError

@@ -3,9 +3,8 @@ import typing as tp
 
 from aiogram import Bot
 
-from domain.access_manager import AccessManager
-from domain.user_state_manager import UserStateManager
 from src import settings
+from src.domain.access_manager import AccessManager
 from src.domain.context_manager import ContextManager
 from src.domain.processing import AccessRefreshProcessor
 from src.domain.processing import AuthProcessor
@@ -18,7 +17,9 @@ from src.domain.processing import PredictProcessor
 from src.domain.processing import ProxyChecker
 from src.domain.processing import ProxyRouter
 from src.domain.processing import ResolutionDeclineRouter
+from src.domain.processing import Spy
 from src.domain.processing import TgInProcessor
+from src.domain.user_state_manager import UserStateManager
 from src.driven_ports.telegram.tg_sender import TgSender
 from src.driven_ports.telegram.wrapper import TgSenderWrapper
 from src.leading_ports.telegram.adapter import MessagePollerAdapter
@@ -51,6 +52,7 @@ async def bootstrap() -> tp.Any:
         ContextSaveProcessor,
         OutGPTResultRouter,
         ResolutionDeclineRouter,
+        Spy,
     ]
 
     proxy_checker = ProxyChecker(bus=bus)

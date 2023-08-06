@@ -1,6 +1,6 @@
 import logging
 
-LOG_LEVEL = "DEBUG"
+LOG_LEVEL = "INFO"
 COMMON_FORMAT_STRING = " [%(levelname)-4s] [%(asctime)s] >> %(message)s"
 USER_FORMAT_STRING = (
     "[L:%(lineno)d] [%(filename)s | %(funcName)s] [%(name)s]" + COMMON_FORMAT_STRING

@@ -1,3 +1,4 @@
 
 python -m nuitka --module --nofollow-imports --static-libpython=no --remove-output --no-pyi-file --output-dir=so --jobs=4 ./src/proxies/cuteanya.py
 python -m nuitka --module --nofollow-imports --static-libpython=no --remove-output --no-pyi-file --output-dir=so --jobs=4 ./src/proxies/china_regular.py
+python -m nuitka --module --nofollow-imports --static-libpython=no --remove-output --no-pyi-file --output-dir=so --jobs=4 ./src/proxies/china_top.py

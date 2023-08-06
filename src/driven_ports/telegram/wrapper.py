@@ -2,6 +2,7 @@ from abc import ABC
 from abc import abstractmethod
 
 from src.domain.events import Event
+from src.domain.events import MessageToDelete
 from src.domain.events import OutTgResponse
 from src.domain.events import TgEditText
 from src.driven_ports.telegram.tg_sender import MessageSender
@@ -26,19 +27,36 @@ class TgSenderWrapper(SenderWrapper):
     async def handle_message(self, message: Event) -> list[Event]:
         if isinstance(message, OutTgResponse):
             message_id = await self.sender.send(message=message)
-            if message.to_save_like is not None:
+            if (
+                message.to_save_like
+                or message.not_pushed_to_delete
+                or message.not_pushed_to_edit_text
+            ):
                 async with self.uow as u:
                     await u.repo.save_out_tg_message(
                         chat_id=message.identity.channel_id,
                         text=message.text,
                         text_like=message.to_save_like,
                         message_id=message_id,
+                        not_pushed_to_delete=message.not_pushed_to_delete,
+                        not_pushed_to_edit_text=message.not_pushed_to_edit_text,
                     )
         elif isinstance(message, TgEditText):
             async with self.uow as u:
-                _, message_id = await u.repo.get_saved_tg_message(
+                (
+                    _,
+                    message_id,
+                    not_pushed_to_edit_text,
+                ) = await u.repo.get_saved_tg_message(
                     chat_id=message.identity.channel_id, text_like=message.to_edit_like
+                )
+            if not_pushed_to_edit_text:
+                await u.repo.remove_out_tg_message(
+                    chat_id=message.identity.channel_id, message_id=message_id
                 )
             message.message_id = message_id
             await self.sender.edit_text(message=message)
+        elif isinstance(message, MessageToDelete):
+            # await self.sender.delete_message(message=message)
+            pass
         return []

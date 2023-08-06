@@ -44,7 +44,6 @@ class SQLAlchemyRepo(AbstractRepo):
             await conn.run_sync(sa_metadata.create_all)
 
     async def save_context(self, user_id: str, context: Context) -> None:
-        print(f"tp4 {context}")
         try:
             await self.session.execute(
                 user_context.insert(),
@@ -72,7 +71,6 @@ class SQLAlchemyRepo(AbstractRepo):
         saved_context = result.first()
         if saved_context is None:
             return None
-        print(f"tp0 {saved_context}")
         return Context(messages=saved_context.context)
 
     async def clear_context(self, user_id: str) -> None:

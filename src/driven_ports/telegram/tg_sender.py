@@ -4,9 +4,9 @@ from abc import abstractmethod
 
 import aiogram
 
-from domain.models import TgInlineButtonArray
 from src.domain.events import OutTgResponse
 from src.domain.events import TgEditText
+from src.domain.models import TgInlineButtonArray
 from src.settings import logger
 
 

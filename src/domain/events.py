@@ -87,7 +87,9 @@ class OutTgResponse(OutResponse):
     """Result text to tg"""
 
     inline_buttons: TgInlineButtonArray | None = None
-    to_save_like: str | None = None
+    to_save_like: str = ""
+    not_pushed_to_delete: bool = False
+    not_pushed_to_edit_text: str = ""
 
 
 @dataclass
@@ -120,3 +122,9 @@ class TgEditText(Event):
     text: str
     inline_buttons: TgInlineButtonArray | None = None
     message_id: str | None = None
+
+
+@dataclass
+class MessageToDelete(Event):
+    chat_id: str
+    message_id: str

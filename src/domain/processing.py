@@ -31,6 +31,7 @@ from src.domain.so_loader import load_so_module
 from src.domain.subscriber import Subscriber
 from src.domain.user_state_manager import UserStateManager
 from src.services.message_bus import MessageBus
+from src.settings import logger
 
 
 class BaseProcessor(Subscriber):
@@ -64,6 +65,12 @@ class BaseProcessor(Subscriber):
         raise NotImplementedError
 
 
+class Spy(BaseProcessor):
+    async def handle_message(self, message: Event) -> list[Event]:
+        logger.info(message)
+        return []
+
+
 class TgInProcessor(BaseProcessor):
     async def handle_message(self, message: Event) -> list[Event]:
         if isinstance(message, InTgText):
@@ -93,8 +100,10 @@ class TgInProcessor(BaseProcessor):
             if message.command == "start":
                 greeting = (
                     "Привет! Это прокси до ChatGPT. Чтобы начать общаться, просто отправь сообщение ;)\n"
-                    "Для очистки контекста отправь /clear\n"
-                    "Для переключения модели отправь /set_proxy"
+                    "Команды бота:\n/clear - очистка контекста\n"
+                    "/set_proxy - переключение используемой модели\n"
+                    "/status - просмотр лимитов\n"
+                    "/buy - покупка доступа"
                 )
                 res_greet = OutTgResponse(identity=identity, text=greeting)
                 res_events.insert(0, res_greet)
@@ -104,13 +113,23 @@ class TgInProcessor(BaseProcessor):
                 res_clear = OutTgResponse(identity=identity, text=clear_response)
                 res_events.append(res_clear)
             # DEBUG command
-            elif message.command == "premium":
+            elif message.command == "buy":
                 await self.access_manager.increase_access_counter_premium(
                     user_id=identity.to_str, count_increase=10
                 )
-                clear_response = "Установлен промо-премиум режим на 10 запросов"
+                clear_response = "Установлен промо-премиум режим на 20 запросов"
                 res_prem = OutTgResponse(identity=identity, text=clear_response)
                 res_events.append(res_prem)
+            elif message.command == "status":
+                access_counter = await self.access_manager.get_access_counter(user_id=identity.to_str)
+                if access_counter.remain_per_all_time > 0:
+                    limit_text = f"По платной подписке осталось {access_counter.remain_per_all_time} запросов."
+                else:
+                    limit_text = (
+                        f"На сегодня осталось {access_counter.remain_per_day} запросов. Счетчик обновится завтра."
+                    )
+                res_limit = OutTgResponse(identity=identity, text=limit_text)
+                res_events.append(res_limit)
             elif message.command == "set_proxy":
                 proxy_list = await self._get_proxy_properties()
                 access_counter = await self.access_manager.get_access_counter(
@@ -148,6 +167,7 @@ class TgInProcessor(BaseProcessor):
                     text=res_text,
                     inline_buttons=TgInlineButtonArray(buttons=buttons),
                     to_save_like="proxy_choice_message",
+                    not_pushed_to_edit_text=f"Прокси не изменен. Текущий прокси: {user_current_proxy_name}",
                 )
                 res_events.append(res_proxy_choice)
             return res_events
@@ -260,7 +280,6 @@ class ContextRetrieveProcessor(BaseProcessor):
             context = await self.context_manager.add_event_in_context(
                 user_id=message.offer.identity.to_str, event=event_to_add
             )
-            print(f"tp3 {context}")
             res = ToPredict(offer=message.offer, context=context)
             return [res]
         return []
