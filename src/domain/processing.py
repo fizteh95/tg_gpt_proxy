@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-from os import walk
 
 from src.domain.access_manager import AccessManager
 from src.domain.context_manager import ContextManager
@@ -17,6 +16,7 @@ from src.domain.events import PredictOfferResolutionDecline
 from src.domain.events import PredictResult
 from src.domain.events import PreparedProxy
 from src.domain.events import ProxyState
+from src.domain.events import TgBotTyping
 from src.domain.events import TgEditText
 from src.domain.events import ToPredict
 from src.domain.events import ToRetrieveContext
@@ -24,13 +24,11 @@ from src.domain.events import ToSaveContext
 from src.domain.models import ChannelType
 from src.domain.models import Context
 from src.domain.models import InputIdentity
-from src.domain.models import Proxy
 from src.domain.models import TgInlineButton
 from src.domain.models import TgInlineButtonArray
-from src.domain.so_loader import load_so_module
+from src.domain.proxy_manager import ProxyManager
 from src.domain.subscriber import Subscriber
 from src.domain.user_state_manager import UserStateManager
-from src.services.message_bus import MessageBus
 from src.settings import logger
 
 
@@ -40,26 +38,12 @@ class BaseProcessor(Subscriber):
         context_manager: ContextManager,
         user_state_manager: UserStateManager,
         access_manager: AccessManager,
+        proxy_manager: ProxyManager,
     ) -> None:
         self.context_manager = context_manager
         self.user_state_manager = user_state_manager
         self.access_manager = access_manager
-
-    @staticmethod
-    async def _get_proxy_properties() -> list[dict[str, str]]:
-        proxies: list[dict[str, str]] = []
-        filenames = next(walk("./so/"), (None, None, []))[2]  # type: ignore
-        for name in filenames:
-            module = load_so_module(name)
-            proxy = module.CustomProxy()
-            proxies.append(
-                {
-                    "name": proxy.name,
-                    "description": proxy.description,
-                    "premium": proxy.premium,
-                }
-            )
-        return proxies
+        self.proxy_manager = proxy_manager
 
     async def handle_message(self, message: Event) -> list[Event]:
         raise NotImplementedError
@@ -77,6 +61,10 @@ class TgInProcessor(BaseProcessor):
             identity = InputIdentity(
                 channel_id=message.tg_user.chat_id, channel_type=ChannelType.tg
             )
+            is_user_has_last_answer = await self.context_manager.is_user_has_last_answer(user_id=identity.to_str)
+            if not is_user_has_last_answer:
+                wait_res = OutTgResponse(identity=identity, text="Генерация ответа не завершена. Подожди пожалуйста.")
+                return [wait_res]
             res = PredictOffer(identity=identity, text=message.text, one_hit=False)
             return [res]
         elif isinstance(message, InTgCommand):
@@ -100,13 +88,26 @@ class TgInProcessor(BaseProcessor):
             if message.command == "start":
                 greeting = (
                     "Привет! Это прокси до ChatGPT. Чтобы начать общаться, просто отправь сообщение ;)\n"
-                    "Команды бота:\n/clear - очистка контекста\n"
+                    "Команды бота:\n"
+                    "/clear - очистка контекста\n"
                     "/set_proxy - переключение используемой модели\n"
                     "/status - просмотр лимитов\n"
-                    "/buy - покупка доступа"
+                    "/buy - покупка доступа\n"
+                    "/help - показать список команд"
                 )
                 res_greet = OutTgResponse(identity=identity, text=greeting)
                 res_events.insert(0, res_greet)
+            elif message.command == "help":
+                help_response = (
+                    "Команды бота:\n"
+                    "/clear - очистка контекста\n"
+                    "/set_proxy - переключение используемой модели\n"
+                    "/status - просмотр лимитов\n"
+                    "/buy - покупка доступа\n"
+                    "/help - показать список команд"
+                )
+                res_help = OutTgResponse(identity=identity, text=help_response)
+                res_events.append(res_help)
             elif message.command == "clear":
                 await self.context_manager.clear_context(user_id=identity.to_str)
                 clear_response = "Контекст очищен."
@@ -114,24 +115,32 @@ class TgInProcessor(BaseProcessor):
                 res_events.append(res_clear)
             # DEBUG command
             elif message.command == "buy":
+                increase = 5
                 await self.access_manager.increase_access_counter_premium(
-                    user_id=identity.to_str, count_increase=10
+                    user_id=identity.to_str, count_increase=increase
                 )
-                clear_response = "Установлен промо-премиум режим на 20 запросов"
-                res_prem = OutTgResponse(identity=identity, text=clear_response)
+                increase_response = (
+                    f"Промо-премиум режим увеличен на {increase} запросов"
+                )
+                res_prem = OutTgResponse(identity=identity, text=increase_response)
                 res_events.append(res_prem)
             elif message.command == "status":
-                access_counter = await self.access_manager.get_access_counter(user_id=identity.to_str)
+                access_counter = await self.access_manager.get_access_counter(
+                    user_id=identity.to_str
+                )
                 if access_counter.remain_per_all_time > 0:
                     limit_text = f"По платной подписке осталось {access_counter.remain_per_all_time} запросов."
                 else:
                     limit_text = (
-                        f"На сегодня осталось {access_counter.remain_per_day} запросов. Счетчик обновится завтра."
+                        f"На сегодня осталось {access_counter.remain_per_day} запросов. "
+                        f"Счетчик обновится завтра."
                     )
                 res_limit = OutTgResponse(identity=identity, text=limit_text)
                 res_events.append(res_limit)
             elif message.command == "set_proxy":
-                proxy_list = await self._get_proxy_properties()
+                proxy_list = await self.proxy_manager.get_proxy_properties(
+                    only_working=True
+                )
                 access_counter = await self.access_manager.get_access_counter(
                     user_id=identity.to_str
                 )
@@ -177,7 +186,7 @@ class TgInProcessor(BaseProcessor):
             )
             if message.data.split()[0] == "proxy_choice":
                 proxy_name = message.data[len(message.data.split()[0]) + 1 :]
-                proxy_list = await self._get_proxy_properties()
+                proxy_list = await self.proxy_manager.get_proxy_properties()
                 access_counter = await self.access_manager.get_access_counter(
                     user_id=identity.to_str
                 )
@@ -228,9 +237,13 @@ class AuthProcessor(BaseProcessor):
                 or access_counter.remain_per_all_time > 0
             ):
                 res = PredictOfferResolutionAccept(offer=message)
+                events_to_bus.append(res)
+                if message.identity.channel_type == ChannelType.tg:
+                    typing_res = TgBotTyping(chat_id=message.identity.channel_id)
+                    events_to_bus.append(typing_res)
             else:
                 res = PredictOfferResolutionDecline(offer=message, reason="Закончился лимит на день(")  # type: ignore
-            events_to_bus.append(res)
+                events_to_bus.append(res)
             return events_to_bus
         return []
 
@@ -285,49 +298,50 @@ class ContextRetrieveProcessor(BaseProcessor):
         return []
 
 
-class ProxyChecker:
+class ProxyChecker(BaseProcessor):
     """
     Загружает классы прокси из папки и периодически пингует их сообщениями
     """
 
-    def __init__(self, bus: MessageBus) -> None:
-        self.bus = bus
-        self.proxies: list[Proxy] = []
-        # loading proxies
-        filenames = next(walk("./so/"), (None, None, []))[2]  # type: ignore
-        for name in filenames:
-            module = load_so_module(name)
-            proxy = module.CustomProxy()
-            self.proxies.append(proxy)
+    async def handle_message(self, message: Event) -> list[Event]:
+        if isinstance(message, ProxyState):
+            if message.ready:
+                await self.proxy_manager.make_proxy_working(message.proxy)
+            else:
+                await self.proxy_manager.make_proxy_not_working(message.proxy)
+        return []
 
     async def start(self) -> None:
         # TODO: сделать по красоте
         while True:
-            working_proxies = []
-            not_working_proxies = []
+            # working_proxies = []
+            # not_working_proxies = []
             test_context = Context(
                 messages=[{"role": "user", "content": "Привет, как дела?"}]
             )
             # проверка
-            for p in self.proxies:
+            all_proxies = await self.proxy_manager.get_proxy_instances()
+            for p in all_proxies:
                 try:
                     res = await p.generate(content=test_context)
                     if isinstance(res, str) and len(res) > 0:
                         print(f"proxy working, {p}")
-                        working_proxies.append(p)
+                        # working_proxies.append(p)
+                        await self.proxy_manager.make_proxy_working(p)
                 except Exception as e:
                     print(f"Proxy checker error: proxy={p.name}, error={e}")
-                    not_working_proxies.append(p)
+                    # not_working_proxies.append(p)
+                    await self.proxy_manager.make_proxy_not_working(p)
             # отправка результатов
-            res_list: list[Event] = []
-            for w in working_proxies:
-                t1 = ProxyState(proxy=w, ready=True)
-                res_list.append(t1)
-            for nw in not_working_proxies:
-                t2 = ProxyState(proxy=nw, ready=False)
-                res_list.append(t2)
-            print(f"proxy list: {res_list}")
-            await self.bus.public_message(message=res_list)
+            # res_list: list[Event] = []
+            # for w in working_proxies:
+            #     t1 = ProxyState(proxy=w, ready=True)
+            #     res_list.append(t1)
+            # for nw in not_working_proxies:
+            #     t2 = ProxyState(proxy=nw, ready=False)
+            #     res_list.append(t2)
+            # print(f"proxy list: {res_list}")
+            # await self.bus.public_message(message=res_list)
             # спим
             await asyncio.sleep(600)  # 10 минут
 
@@ -338,11 +352,13 @@ class AccessRefreshProcessor(BaseProcessor):
         context_manager: ContextManager,
         user_state_manager: UserStateManager,
         access_manager: AccessManager,
+        proxy_manager: ProxyManager,
     ) -> None:
         super().__init__(
             context_manager=context_manager,
             user_state_manager=user_state_manager,
             access_manager=access_manager,
+            proxy_manager=proxy_manager,
         )
         self.updated_at = datetime.datetime.now()
 
@@ -360,44 +376,27 @@ class AccessRefreshProcessor(BaseProcessor):
 
 
 class ProxyRouter(BaseProcessor):
-    def __init__(
-        self,
-        context_manager: ContextManager,
-        user_state_manager: UserStateManager,
-        access_manager: AccessManager,
-    ) -> None:
-        super().__init__(
-            context_manager=context_manager,
-            user_state_manager=user_state_manager,
-            access_manager=access_manager,
-        )
-        self.proxies: set[Proxy] = set()
-
-    def _get_proxy_by_name(self, name: str) -> Proxy | None:
-        for p in list(self.proxies):
-            if p.name == name:
-                return p
-        return None
-
     async def handle_message(self, message: Event) -> list[Event]:
-        if isinstance(message, ProxyState):
-            if message.ready:
-                self.proxies.add(message.proxy)
-            else:
-                self.proxies.discard(message.proxy)
-            return []
-        elif isinstance(message, ToPredict):
+        # if isinstance(message, ProxyState):
+        #     if message.ready:
+        #         self.proxies.add(message.proxy)
+        #     else:
+        #         self.proxies.discard(message.proxy)
+        #     return []
+        if isinstance(message, ToPredict):
             if message.offer.identity.channel_type == ChannelType.tg:
                 user_current_proxy_name = (
                     await self.user_state_manager.get_user_proxy_name(
                         chat_id=message.offer.identity.channel_id
                     )
                 )
-                proxy = self._get_proxy_by_name(name=user_current_proxy_name)
+                proxy = await self.proxy_manager.get_proxy_by_name(
+                    name=user_current_proxy_name
+                )
                 if proxy is None:
-                    proxy = self._get_proxy_by_name(name="ChatGPT-3.5 bounded")
+                    proxy = await self.proxy_manager.get_default_proxy()
             else:
-                proxy = self._get_proxy_by_name(name="ChatGPT-3.5 bounded")
+                proxy = await self.proxy_manager.get_default_proxy()
             if not proxy:
                 raise Exception("Proxy not found")
             res = PreparedProxy(proxy=proxy, to_predict=message)  # TODO: check proxy
@@ -408,13 +407,28 @@ class ProxyRouter(BaseProcessor):
 class PredictProcessor(BaseProcessor):
     async def handle_message(self, message: Event) -> list[Event]:
         if isinstance(message, PreparedProxy):
+            res: list[Event] = []
             print(f"Start generate {message.proxy.name}")
-            response_text = await message.proxy.generate(
-                content=message.to_predict.context
-            )
-            print("End generate")
-            res = PredictResult(offer=message.to_predict.offer, text=response_text)
-            return [res]
+            try:
+                response_text = await message.proxy.generate(
+                    content=message.to_predict.context
+                )
+                print("End generate")
+                pr = PredictResult(offer=message.to_predict.offer, text=response_text)
+                res.append(pr)
+            except Exception as e:
+                logger.error(f"Proxy {message.proxy.name} not working! Error: {e}")
+                await self.context_manager.pop_last_user_question(
+                    user_id=message.to_predict.offer.identity.to_str
+                )
+                pr_error = OutTgResponse(
+                    identity=message.to_predict.offer.identity,
+                    text="Похоже, что прокси сломался( попробуй придти позже, "
+                    "или выбери другой прокси командой /set_proxy.",
+                )
+                ps = ProxyState(proxy=message.proxy, ready=False)
+                res += [pr_error, ps]
+            return res
         return []
 
 
@@ -450,6 +464,9 @@ class OutGPTResultRouter(BaseProcessor):
         if isinstance(message, GPTResult):
             if message.identity.channel_type == ChannelType.tg:
                 events_to_bus: list[Event] = []
+                res = OutTgResponse(identity=message.identity, text=message.text)
+                print(res)
+                events_to_bus.append(res)
                 access_counter = await self.access_manager.get_access_counter(
                     user_id=message.identity.to_str
                 )
@@ -460,15 +477,14 @@ class OutGPTResultRouter(BaseProcessor):
                         )
                     )
                     if is_zero:
-                        proxy_list = await self._get_proxy_properties()
-                        free_proxy = [x for x in proxy_list if not x["premium"]][0]
+                        free_proxy = await self.proxy_manager.get_default_proxy()
                         await self.user_state_manager.set_user_proxy_name(
                             chat_id=message.identity.channel_id,
-                            proxy_name=free_proxy["name"],
+                            proxy_name=free_proxy.name,
                         )
                         tg_notify_text = (
                             f"Закончился лимит на платные прокси. "
-                            f"Для использования установлен бесплатный прокси {free_proxy['name']}"
+                            f"Для использования установлен бесплатный прокси {free_proxy.name}"
                         )
                         tg_notify_event = OutTgResponse(
                             identity=message.identity, text=tg_notify_text
@@ -484,10 +500,6 @@ class OutGPTResultRouter(BaseProcessor):
                             identity=message.identity, text=tg_notify_text
                         )
                         events_to_bus.append(tg_notify_event)
-
-                res = OutTgResponse(identity=message.identity, text=message.text)
-                print(res)
-                events_to_bus.append(res)
                 return events_to_bus
             elif message.identity.channel_type == ChannelType.api:
                 res_api = OutAPIResponse(identity=message.identity, text=message.text)

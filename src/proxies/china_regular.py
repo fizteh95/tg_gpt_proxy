@@ -10,8 +10,8 @@ from src.domain.models import Proxy
 class CustomProxy(Proxy):
     def __init__(self) -> None:
         super().__init__()
-        self.name = "ChatGPT-3.5"
-        self.description = "Зеркало OpenAI"
+        self.name = "ChatGPT-3.5 #1"
+        self.description = "Зеркало OpenAI #1"
         self.premium = True
         self.headers = {
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
@@ -55,7 +55,8 @@ class CustomProxy(Proxy):
                     json=auth_data,
                     headers=self.headers,
                 ) as r:
-                    print(f"{r.status}, {r.url}")
+                    # print(f"{r.status}, {r.url}")
+                    pass
                 # event
                 event_data = {
                     "n": "pageview",
@@ -67,7 +68,8 @@ class CustomProxy(Proxy):
                 async with session.post(
                     "https://analytics.gptnb.xyz/api/event", data=event_data
                 ) as r:
-                    print(f"{r.status}, {r.url}")
+                    # print(f"{r.status}, {r.url}")
+                    pass
 
                 get_urls2 = [
                     "https://gpt.aifree.site/_astro/web.0d5d0bd9.js",
@@ -92,5 +94,7 @@ class CustomProxy(Proxy):
             async with session.post(
                 "https://gpt.aifree.site/api/generate", json=generate_data
             ) as r:
+                if r.status != 200:
+                    raise Exception("China regular proxy limit exceeded.")
                 response_text = await r.text()
                 return response_text

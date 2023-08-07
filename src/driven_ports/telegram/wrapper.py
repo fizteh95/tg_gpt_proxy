@@ -4,6 +4,7 @@ from abc import abstractmethod
 from src.domain.events import Event
 from src.domain.events import MessageToDelete
 from src.domain.events import OutTgResponse
+from src.domain.events import TgBotTyping
 from src.domain.events import TgEditText
 from src.driven_ports.telegram.tg_sender import MessageSender
 from src.services.message_bus import MessageBus
@@ -59,4 +60,6 @@ class TgSenderWrapper(SenderWrapper):
         elif isinstance(message, MessageToDelete):
             # await self.sender.delete_message(message=message)
             pass
+        elif isinstance(message, TgBotTyping):
+            await self.sender.send_typing(chat_id=message.chat_id)
         return []

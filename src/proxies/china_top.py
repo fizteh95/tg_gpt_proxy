@@ -1,7 +1,8 @@
-import time
-from hashlib import sha256
 import base64
 import json
+import time
+from hashlib import sha256
+
 import aiohttp
 
 from src.domain.models import Context
@@ -26,7 +27,7 @@ class CustomProxy(Proxy):
             "Version": "1.0",
             ":Authority": "api.powerchat.top",
             "Origin": "https://powerchat.top",
-            "Referer": "https://powerchat.top/"
+            "Referer": "https://powerchat.top/",
         }
         self.first_start = True
 
@@ -39,7 +40,9 @@ class CustomProxy(Proxy):
         return sign
 
     async def generate(self, content: Context) -> str:
-        async with aiohttp.ClientSession(headers=self.headers) as session:  # headers=self.headers
+        async with aiohttp.ClientSession(
+            headers=self.headers
+        ) as session:  # headers=self.headers
             if self.first_start:
                 self.first_start = False
                 get_urls = [
@@ -60,7 +63,6 @@ class CustomProxy(Proxy):
 
             # generate
             timestamp = str(int(time.time() * 1000))
-            print(timestamp)
             sign = self.generate_sign(timestamp=timestamp)
             generate_data = {
                 "did": "badf5ee8382f536d45fc26c78298a2ce",
@@ -77,9 +79,8 @@ class CustomProxy(Proxy):
             utf_encoded = json_dumped.encode("utf-8")
             encoded_data = base64.b64encode(utf_encoded)
             async with session.post(
-                "https://api.powerchat.top/requestPowerChat", json={"data": encoded_data.decode()},
+                "https://api.powerchat.top/requestPowerChat",
+                json={"data": encoded_data.decode()},
             ) as r:
                 response_text = await r.text()
-                print(r.status)
-                print(r.content)
                 return response_text

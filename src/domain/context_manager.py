@@ -27,3 +27,18 @@ class ContextManager:
     async def clear_context(self, user_id: str) -> None:
         async with self.uow as uow:
             await uow.repo.clear_context(user_id=user_id)
+
+    async def pop_last_user_question(self, user_id: str) -> None:
+        context = await self.get_context(user_id=user_id)
+        new_context = Context(messages=context.messages[:-1])
+        async with self.uow as uow:
+            await uow.repo.save_context(user_id=user_id, context=new_context)
+
+    async def is_user_has_last_answer(self, user_id: str) -> bool:
+        context = await self.get_context(user_id=user_id)
+        try:
+            if context.messages[-1]["role"] == "assistant":
+                return True
+        except (KeyError, IndexError,):
+            return True
+        return False

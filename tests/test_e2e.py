@@ -18,8 +18,11 @@ from src.domain.processing import OutGPTResultRouter
 from src.domain.processing import PredictProcessor
 from src.domain.processing import ProxyRouter
 from src.domain.processing import TgInProcessor
+from src.domain.proxy_manager import ProxyManager
 from src.domain.user_state_manager import UserStateManager
 from src.services.message_bus import ConcreteMessageBus
+from src.services.message_bus import MessageBus
+from src.services.unit_of_work import AbstractUnitOfWork
 from src.services.unit_of_work import InMemoryUnitOfWork
 
 
@@ -37,6 +40,14 @@ class FakeOutTg:
 class FakeProxy(Proxy):
     async def generate(self, content: Context) -> str:
         return "Привет!"
+
+
+class FakeProxyManager(ProxyManager):
+    def __init__(self, uow: AbstractUnitOfWork, bus: MessageBus) -> None:  # noqa
+        self.uow = uow
+        self.bus = bus
+        self.proxies = {"fake_proxy": FakeProxy()}
+        self.proxy_status = {"fake_proxy": True}
 
 
 @pytest.mark.asyncio
@@ -60,6 +71,7 @@ async def test_everything() -> None:
     context_manager = ContextManager(bus=bus, uow=uow)
     user_state_manager = UserStateManager(bus=bus, uow=uow)
     access_manager = AccessManager(bus=bus, uow=uow)
+    proxy_manager = FakeProxyManager(bus=bus, uow=uow)
 
     for p in processors:
         bus.register(
@@ -67,6 +79,7 @@ async def test_everything() -> None:
                 context_manager=context_manager,
                 user_state_manager=user_state_manager,
                 access_manager=access_manager,
+                proxy_manager=proxy_manager,
             )
         )
     bus.register(fot)

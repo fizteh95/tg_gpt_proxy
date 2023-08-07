@@ -19,6 +19,10 @@ class MessageSender(ABC):
     async def edit_text(self, message: TgEditText) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    async def send_typing(self, chat_id: str) -> None:
+        raise NotImplementedError
+
 
 class TgSender(MessageSender):
     def __init__(self, bot: aiogram.Bot) -> None:
@@ -66,3 +70,7 @@ class TgSender(MessageSender):
             parse_mode="HTML",
             reply_markup=reply_markup,
         )
+
+    async def send_typing(self, chat_id: str) -> None:
+        logger.info("send typing")
+        await self.bot.send_chat_action(chat_id=chat_id, action="typing")

@@ -128,3 +128,8 @@ class TgEditText(Event):
 class MessageToDelete(Event):
     chat_id: str
     message_id: str
+
+
+@dataclass
+class TgBotTyping(Event):
+    chat_id: str

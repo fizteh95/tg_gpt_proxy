@@ -19,6 +19,7 @@ from src.domain.processing import ProxyRouter
 from src.domain.processing import ResolutionDeclineRouter
 from src.domain.processing import Spy
 from src.domain.processing import TgInProcessor
+from src.domain.proxy_manager import ProxyManager
 from src.domain.user_state_manager import UserStateManager
 from src.driven_ports.telegram.tg_sender import TgSender
 from src.driven_ports.telegram.wrapper import TgSenderWrapper
@@ -40,6 +41,7 @@ async def bootstrap() -> tp.Any:
     context_manager = ContextManager(bus=bus, uow=uow)
     user_state_manager = UserStateManager(bus=bus, uow=uow)
     access_manager = AccessManager(bus=bus, uow=uow)
+    proxy_manager = ProxyManager(bus=bus, uow=uow)
 
     processors = [
         TgInProcessor,
@@ -48,34 +50,29 @@ async def bootstrap() -> tp.Any:
         ContextRetrieveProcessor,
         ProxyRouter,
         PredictProcessor,
+        AccessRefreshProcessor,
         OutContextExist,
         ContextSaveProcessor,
         OutGPTResultRouter,
         ResolutionDeclineRouter,
+        ProxyChecker,
         Spy,
     ]
-
-    proxy_checker = ProxyChecker(bus=bus)
-    access_refresh_processor = AccessRefreshProcessor(
-        context_manager=context_manager,
-        user_state_manager=user_state_manager,
-        access_manager=access_manager,
-    )
+    created_processors = []
 
     for p in processors:
-        bus.register(
-            p(
-                context_manager=context_manager,
-                user_state_manager=user_state_manager,
-                access_manager=access_manager,
-            )
+        processor = p(
+            context_manager=context_manager,
+            user_state_manager=user_state_manager,
+            access_manager=access_manager,
+            proxy_manager=proxy_manager,
         )
+        bus.register(processor)
+        created_processors.append(processor)
 
-    # proxy_to_add = ProxyState(proxy_checker.proxies[0], ready=True)
-    #
-    # await bus.public_message(proxy_to_add)
-    asyncio.create_task(proxy_checker.start())
-    asyncio.create_task(access_refresh_processor.start())
+    for cp in created_processors:
+        if hasattr(cp, "start"):
+            asyncio.create_task(cp.start())
 
     # Telegram
     bot = Bot(token=settings.TG_BOT_TOKEN)

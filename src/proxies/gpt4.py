@@ -1,3 +1,6 @@
+import asyncio
+import datetime
+
 import aiohttp
 
 from src.domain.models import Context
@@ -7,45 +10,54 @@ from src.domain.models import Proxy
 class CustomProxy(Proxy):
     def __init__(self) -> None:
         super().__init__()
-        self.name = "ChatGPT-3.5 bounded"
+        self.name = "ChatGPT-4 bounded"
         self.description = (
-            "Зеркало OpenAI. Ограничение на количество токенов в ответе: 200."
+            "Зеркало OpenAI. Ограничение на количество токенов в ответе: 300. "
+            "Время ответа может быть увеличено относительно других прокси."
         )
+        self.premium = True
+        self.last_times: list[datetime.datetime] = []
 
-    async def generate(self, content: Context) -> str:
+    def _if_we_can_request(self) -> bool:
+        if len(self.last_times) < 3:
+            return True
+        if self.last_times[0] < (
+            datetime.datetime.now() - datetime.timedelta(minutes=1)
+        ):
+            return True
+        return False
+
+    def _update_counters(self) -> None:
+        self.last_times.append(datetime.datetime.now())
+        if len(self.last_times) > 3:
+            self.last_times.pop(0)
+
+    @staticmethod
+    async def __generate(content: Context) -> str:
         headers = {"Authorization": "Bearer 54a0a1be-b0ac-4d0e-ac0f-a0e3c40def6d"}
         async with aiohttp.ClientSession(headers=headers) as session:  # headers=headers
             generate_data = {
                 "messages": content.messages,
-                "model": "gpt-4",  # "gpt-3.5-turbo",
+                "model": "gpt-4",
                 "stream": False,
                 "max_tokens": 1200,
             }
             async with session.post(
-                # https://thecentuaro-oai-proxy-geoblock-zov-edition.hf.space/proxy/anthropic
                 "https://thecentuaro-oai-proxy-geoblock-zov-edition.hf.space/proxy/openai/chat/completions",
                 json=generate_data,
             ) as r:
                 try:
                     response_json = await r.json()
-                    print(response_json)
-                    response_text: str = response_json["choices"][0]["message"]["content"]
+                    response_text: str = response_json["choices"][0]["message"][
+                        "content"
+                    ]
                     return response_text
-                except:
-                    print(response_json)
+                except Exception as e:
+                    raise Exception(f"ChatGPT-4 GEO proxy error: {e}")
 
-
-"""
-import asyncio
-from src.domain.models import Context
-from src.proxies.anthropic import CustomProxy
-
-p = CustomProxy()
-c = Context(messages=[{"role": "user", "content": "Привет! Кто ты?"}])
-
-async def gen():
-    res = await p.generate(content=c)
-    print(res)
-    
-asyncio.run(gen())
-"""
+    async def generate(self, content: Context) -> str:
+        while not self._if_we_can_request():
+            await asyncio.sleep(3)
+        self._update_counters()
+        response = await self.__generate(content=content)
+        return response
