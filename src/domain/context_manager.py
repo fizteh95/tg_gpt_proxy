@@ -39,6 +39,9 @@ class ContextManager:
         try:
             if context.messages[-1]["role"] == "assistant":
                 return True
-        except (KeyError, IndexError,):
+        except (
+            KeyError,
+            IndexError,
+        ):
             return True
         return False

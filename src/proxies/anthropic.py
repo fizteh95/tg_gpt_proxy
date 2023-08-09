@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 
-
 import aiohttp
 
 from src.domain.models import Context
@@ -44,8 +43,8 @@ class CustomProxy(Proxy):
                 "max_tokens": 2048,
             }
             async with session.post(
-                    "https://thecentuaro-oai-proxy-geoblock-zov-edition.hf.space/proxy/anthropic/v1/chat/completions",
-                    json=generate_data,
+                "https://thecentuaro-oai-proxy-geoblock-zov-edition.hf.space/proxy/anthropic/v1/chat/completions",
+                json=generate_data,
             ) as r:
                 try:
                     response_json = await r.json()
