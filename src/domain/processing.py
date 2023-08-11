@@ -52,6 +52,7 @@ class BaseProcessor(Subscriber):
 class Spy(BaseProcessor):
     async def handle_message(self, message: Event) -> list[Event]:
         logger.info(message)
+        print(message)
         return []
 
 

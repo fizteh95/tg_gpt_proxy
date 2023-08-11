@@ -22,7 +22,7 @@ class AbstractUnitOfWork(ABC):
         self, exn_type: tp.Any, exn_value: tp.Any, traceback: tp.Any
     ) -> None:
         if exn_type is None:
-            await self.commit()
+            await self._commit()
         else:
             await self.rollback()
             raise exn_type(exn_value)
@@ -70,8 +70,12 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
         self, exn_type: tp.Any, exn_value: tp.Any, traceback: tp.Any
     ) -> None:
         if exn_type is None:
-            await self.repo.session.commit()  # type: ignore
+            await self._commit()
         else:
+            print(exn_type)
+            print(exn_value)
+            print(traceback.print_exc())
+            print("UoW error")
             await self.rollback()
         await self.repo.session.close()  # type: ignore
         self.repo.session = None  # type: ignore

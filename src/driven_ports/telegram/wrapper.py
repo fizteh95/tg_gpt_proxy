@@ -51,10 +51,10 @@ class TgSenderWrapper(SenderWrapper):
                 ) = await u.repo.get_saved_tg_message(
                     chat_id=message.identity.channel_id, text_like=message.to_edit_like
                 )
-            if not_pushed_to_edit_text:
-                await u.repo.remove_out_tg_message(
-                    chat_id=message.identity.channel_id, message_id=message_id
-                )
+                if not_pushed_to_edit_text:
+                    await u.repo.remove_out_tg_message(
+                        chat_id=message.identity.channel_id, message_id=message_id
+                    )
             message.message_id = message_id
             await self.sender.edit_text(message=message)
         elif isinstance(message, MessageToDelete):

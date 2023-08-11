@@ -129,7 +129,7 @@ class SQLAlchemyRepo(AbstractRepo):
                 state=state,
             )
         )
-        if updated == 0:
+        if updated.rowcount == 0:
             await self.session.execute(
                 tg_user_state.insert(),
                 [
@@ -140,15 +140,13 @@ class SQLAlchemyRepo(AbstractRepo):
                     )
                 ],
             )
-        # TODO:
-        raise
 
     async def get_tg_user_state(self, chat_id: str) -> dict[str, str]:
         result = await self.session.execute(
             select(tg_user_state).where(tg_user_state.c.chat_id == chat_id)
         )
         user_states: dict[str, str] = {}
-        for row in result:
+        for row in result.fetchall():
             user_states[row.state_map] = row.state
         return user_states
 
@@ -177,7 +175,7 @@ class SQLAlchemyRepo(AbstractRepo):
     async def set_access_counter(
         self, user_id: str, access_counter: AccessCounter
     ) -> None:
-        await self.session.execute(
+        updated = await self.session.execute(
             sa.update(access_counter_table)
             .where(access_counter_table.c.user_id == user_id)
             .values(
@@ -185,6 +183,17 @@ class SQLAlchemyRepo(AbstractRepo):
                 remain_per_all_time=access_counter.remain_per_all_time,
             )
         )
+        if updated.rowcount == 0:
+            await self.session.execute(
+                access_counter_table.insert(),
+                [
+                    dict(
+                        user_id=user_id,
+                        remain_per_day=access_counter.remain_per_day,
+                        remain_per_all_time=access_counter.remain_per_all_time,
+                    )
+                ],
+            )
 
     async def save_out_tg_message(
         self,
@@ -218,7 +227,7 @@ class SQLAlchemyRepo(AbstractRepo):
             sa.update(out_tg_message)
             .where(
                 out_tg_message.c.chat_id == chat_id,
-                out_tg_message.c.message_text_like == message_text_like,
+                out_tg_message.c.text_like == message_text_like,
             )
             .values(pushed=True)
         )
