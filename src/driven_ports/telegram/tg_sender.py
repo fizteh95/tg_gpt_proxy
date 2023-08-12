@@ -28,6 +28,7 @@ class TgSender(MessageSender):
     def __init__(self, bot: aiogram.Bot) -> None:
         """Initialize of sender"""
         self.bot = bot
+        self.text_length_limit = 4096
 
     @staticmethod
     def create_reply_markup(
@@ -50,10 +51,19 @@ class TgSender(MessageSender):
     async def send(self, message: OutTgResponse) -> str:
         """Send to outer service"""
         logger.info("send message")
+        text_to_send = message.text
+        if len(text_to_send) > self.text_length_limit:
+            while len(text_to_send) > self.text_length_limit:
+                await self.bot.send_message(
+                    chat_id=message.identity.channel_id,
+                    text=text_to_send[: self.text_length_limit + 1],
+                    parse_mode="HTML",
+                )
+                text_to_send = text_to_send[self.text_length_limit + 1 :]
         reply_markup = self.create_reply_markup(message.inline_buttons)
         sent_message = await self.bot.send_message(
             chat_id=message.identity.channel_id,
-            text=message.text,
+            text=text_to_send,
             parse_mode="HTML",
             reply_markup=reply_markup,
         )

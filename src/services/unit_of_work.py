@@ -6,6 +6,7 @@ from sqlalchemy import orm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from src.settings import logger
 from src import settings
 from src.services.repo import AbstractRepo
 from src.services.repo.alchemy.repository import SQLAlchemyRepo
@@ -72,10 +73,10 @@ class SQLAlchemyUnitOfWork(AbstractUnitOfWork):
         if exn_type is None:
             await self._commit()
         else:
-            print(exn_type)
-            print(exn_value)
-            print(traceback.print_exc())
-            print("UoW error")
+            logger.error("UoW error")
+            logger.error(exn_type)
+            logger.error(exn_value)
+            logger.error(traceback.print_exc())
             await self.rollback()
         await self.repo.session.close()  # type: ignore
         self.repo.session = None  # type: ignore

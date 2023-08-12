@@ -52,7 +52,6 @@ class BaseProcessor(Subscriber):
 class Spy(BaseProcessor):
     async def handle_message(self, message: Event) -> list[Event]:
         logger.info(message)
-        print(message)
         return []
 
 
@@ -181,6 +180,10 @@ class TgInProcessor(BaseProcessor):
         elif message.command == "set_proxy":
             res_proxy_choice = await self._set_user_proxy_processing(identity=identity)
             res_events += res_proxy_choice
+        else:
+            unknown_response = "Неизвестная команда. Отправь /help чтобы увидеть доступные команды."
+            res_clear = OutTgResponse(identity=identity, text=unknown_response)
+            res_events.append(res_clear)
         return res_events
 
     async def _button_processing(self, message: InTgButtonPushed) -> list[Event]:
@@ -337,11 +340,11 @@ class ProxyChecker(BaseProcessor):
                 try:
                     res = await p.generate(content=test_context)
                     if isinstance(res, str) and len(res) > 0:
-                        print(f"proxy working, {p}")
+                        logger.info(f"proxy working, {p}")
                         # working_proxies.append(p)
                         await self.proxy_manager.make_proxy_working(p)
                 except Exception as e:
-                    print(f"Proxy checker error: proxy={p.name}, error={e}")
+                    logger.info(f"Proxy checker error: proxy={p.name}, error={e}")
                     # not_working_proxies.append(p)
                     await self.proxy_manager.make_proxy_not_working(p)
             # отправка результатов
@@ -420,12 +423,12 @@ class PredictProcessor(BaseProcessor):
     async def handle_message(self, message: Event) -> list[Event]:
         if isinstance(message, PreparedProxy):
             res: list[Event] = []
-            print(f"Start generate {message.proxy.name}")
+            logger.info(f"Start generate {message.proxy.name}")
             try:
                 response_text = await message.proxy.generate(
                     content=message.to_predict.context
                 )
-                print("End generate")
+                logger.info("End generate")
                 pr = PredictResult(offer=message.to_predict.offer, text=response_text)
                 res.append(pr)
             except Exception as e:
@@ -477,7 +480,7 @@ class OutGPTResultRouter(BaseProcessor):
             if message.identity.channel_type == ChannelType.tg:
                 events_to_bus: list[Event] = []
                 res = OutTgResponse(identity=message.identity, text=message.text)
-                print(res)
+                logger.info(f"Response to telegram: {res}")
                 events_to_bus.append(res)
                 access_counter = await self.access_manager.get_access_counter(
                     user_id=message.identity.to_str
