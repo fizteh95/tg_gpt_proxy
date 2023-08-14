@@ -29,14 +29,19 @@ from src.services.message_bus import ConcreteMessageBus
 from src.services.unit_of_work import InMemoryUnitOfWork  # noqa
 from src.services.unit_of_work import SQLAlchemyUnitOfWork  # noqa
 
+settings.logging.config.dictConfig(settings.LOGGING)  # noqa
+
 
 async def bootstrap() -> tp.Any:
     to_gather: list[tp.Coroutine[None, None, None]] = []
+    # await asyncio.sleep(10)
 
     uow = SQLAlchemyUnitOfWork()
     async with uow as u:
         await u.repo.prepare_db()
     bus = ConcreteMessageBus()
+
+    settings.logging.config.dictConfig(settings.LOGGING)  # noqa
 
     context_manager = ContextManager(bus=bus, uow=uow)
     user_state_manager = UserStateManager(bus=bus, uow=uow)

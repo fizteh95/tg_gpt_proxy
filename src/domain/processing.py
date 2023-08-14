@@ -181,7 +181,9 @@ class TgInProcessor(BaseProcessor):
             res_proxy_choice = await self._set_user_proxy_processing(identity=identity)
             res_events += res_proxy_choice
         else:
-            unknown_response = "Неизвестная команда. Отправь /help чтобы увидеть доступные команды."
+            unknown_response = (
+                "Неизвестная команда. Отправь /help чтобы увидеть доступные команды."
+            )
             res_clear = OutTgResponse(identity=identity, text=unknown_response)
             res_events.append(res_clear)
         return res_events
@@ -328,25 +330,29 @@ class ProxyChecker(BaseProcessor):
 
     async def start(self) -> None:
         # TODO: сделать по красоте
+        logger.info("start proxy checker")
         while True:
             # working_proxies = []
             # not_working_proxies = []
             test_context = Context(
                 messages=[{"role": "user", "content": "Привет, как дела?"}]
             )
-            # проверка
-            all_proxies = await self.proxy_manager.get_proxy_instances()
-            for p in all_proxies:
-                try:
-                    res = await p.generate(content=test_context)
-                    if isinstance(res, str) and len(res) > 0:
-                        logger.info(f"proxy working, {p}")
-                        # working_proxies.append(p)
-                        await self.proxy_manager.make_proxy_working(p)
-                except Exception as e:
-                    logger.info(f"Proxy checker error: proxy={p.name}, error={e}")
-                    # not_working_proxies.append(p)
-                    await self.proxy_manager.make_proxy_not_working(p)
+            try:
+                # проверка
+                all_proxies = await self.proxy_manager.get_proxy_instances()
+                for p in all_proxies:
+                    try:
+                        res = await p.generate(content=test_context)
+                        if isinstance(res, str) and len(res) > 0:
+                            logger.info(f"proxy working, {p}")
+                            # working_proxies.append(p)
+                            await self.proxy_manager.make_proxy_working(p)
+                    except Exception as e:
+                        logger.info(f"Proxy checker error: proxy={p.name}, error={e}")
+                        # not_working_proxies.append(p)
+                        await self.proxy_manager.make_proxy_not_working(p)
+            except Exception as e:
+                logger.error(f"proxy checker error: {e}")
             # отправка результатов
             # res_list: list[Event] = []
             # for w in working_proxies:
@@ -358,7 +364,7 @@ class ProxyChecker(BaseProcessor):
             # print(f"proxy list: {res_list}")
             # await self.bus.public_message(message=res_list)
             # спим
-            await asyncio.sleep(600)  # 10 минут
+            await asyncio.sleep(300)  # 5 минут
 
 
 class AccessRefreshProcessor(BaseProcessor):
@@ -409,7 +415,15 @@ class ProxyRouter(BaseProcessor):
                     name=user_current_proxy_name
                 )
                 if proxy is None:
-                    proxy = await self.proxy_manager.get_default_proxy()
+                    try:
+                        proxy = await self.proxy_manager.get_default_proxy()
+                    except IndexError:
+                        pr_error = OutTgResponse(
+                            identity=message.offer.identity,
+                            text="Похоже, что прокси сломался( попробуй придти позже, "
+                            "или выбери другой прокси командой /set_proxy.",
+                        )
+                        return [pr_error]
             else:
                 proxy = await self.proxy_manager.get_default_proxy()
             if not proxy:
