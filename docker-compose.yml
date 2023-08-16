@@ -2,7 +2,7 @@ version: "3"
 
 services:
 
-  constructor:
+  tg-gpt-proxy:
     image: tg-gpt-proxy
     depends_on:
       - postgres
@@ -24,6 +24,7 @@ services:
 
   postgres:
     image: postgres:latest
+    restart: always
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -37,15 +38,3 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
-#  redis:
-#    image: redis:alpine
-#    environment:
-#      - ALLOW_EMPTY_PASSWORD=yes
-#    ports:
-#      - "6379:6379"
-#    healthcheck:
-#      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
-#      interval: 5s
-#      timeout: 5s
-#      retries: 5

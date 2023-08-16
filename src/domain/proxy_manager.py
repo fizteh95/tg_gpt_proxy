@@ -11,11 +11,17 @@ from src.services.unit_of_work import AbstractUnitOfWork
 
 
 def load_so_module(module_name: str) -> tp.Any:
-    module_name_without_so = module_name.replace(".so", "")
-    file_path = Path(f"so/{module_name_without_so}.so")
-    spec = importlib.util.spec_from_file_location(module_name_without_so, file_path)
+    # module_name_without_so = module_name.replace(".so", "")
+    # file_path = Path(f"so/{module_name_without_so}.so")
+    # spec = importlib.util.spec_from_file_location(module_name_without_so, file_path)
+    # module = importlib.util.module_from_spec(spec)  # type: ignore
+    # sys.modules[module_name_without_so] = module
+    # spec.loader.exec_module(module)  # type: ignore
+    module_name_without_py = module_name.replace(".py", "")
+    file_path = Path(f"src/proxies/{module_name_without_py}.py")
+    spec = importlib.util.spec_from_file_location(module_name_without_py, file_path)
     module = importlib.util.module_from_spec(spec)  # type: ignore
-    sys.modules[module_name_without_so] = module
+    sys.modules[module_name_without_py] = module
     spec.loader.exec_module(module)  # type: ignore
     return module
 
@@ -28,8 +34,11 @@ class ProxyManager:
         self.proxy_status: dict[str, bool] = {}
 
         # download proxies
-        filenames: list[str] = next(os.walk("./so/"), (None, None, []))[2]  # type: ignore
+        # filenames: list[str] = next(os.walk("./so/"), (None, None, []))[2]  # type: ignore
+        filenames: list[str] = next(os.walk("./src/proxies/"), (None, None, []))[2]  # type: ignore
         for name in filenames:
+            if name == "__init__.py":
+                continue
             module = load_so_module(name)
             proxy = module.CustomProxy()
             self.proxies[proxy.name] = proxy

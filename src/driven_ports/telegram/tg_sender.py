@@ -28,7 +28,7 @@ class TgSender(MessageSender):
     def __init__(self, bot: aiogram.Bot) -> None:
         """Initialize of sender"""
         self.bot = bot
-        self.text_length_limit = 4096
+        self.text_length_limit = 4090
 
     @staticmethod
     def create_reply_markup(
@@ -60,6 +60,7 @@ class TgSender(MessageSender):
                     parse_mode="HTML",
                 )
                 text_to_send = text_to_send[self.text_length_limit + 1 :]
+                await asyncio.sleep(0.5)
         reply_markup = self.create_reply_markup(message.inline_buttons)
         sent_message = await self.bot.send_message(
             chat_id=message.identity.channel_id,
